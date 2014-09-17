@@ -1,17 +1,18 @@
 library(foreign)
 data <- read.dta('MPDataset.dta')
 sweden <- droplevels(subset(data, country == 'sweden'))
-levels(sweden$party) <- c("Miljöpartiet de Gröna",
-                          "Vänsterpartiet",
-                          "Socialdemokratiska Arbetarepartiet",
-                          "Folkpartiet Liberalerna",
-                          "Kristdemokraterna",
-                          "Moderata samlingspartiet",
-                          "Sverigedemokraterna",
-                          "Centerpartiet",
-                          "Ny Demokrati")
+levels(sweden$party) <- c("MP",
+                          "V",
+                          "S",
+                          "FP",
+                          "KD",
+                          "M",
+                          "SD",
+                          "C",
+                          "NyD")
 sweden$party <- factor(sweden$party, levels=levels(sweden$party)[c(2,3,1,8,5,4,6,7,9)])
-colors <- c("#fb9a99", "#e31a1c", "#33a02c", "#b2df8a", "#cab2d6", "#a6cee3", "#1f78b4", "#ff7f00", "#fdbf6f")
+colors <- c("#b70410", "#f9232b", "#79cf49", "#00993c", "#211974",
+            "#5cb7e9", "#0049d8", "#dedd37", "#ffff41")
 
 ## TODO: Plot average and/or block in at least some of these
 library(ggplot2)
