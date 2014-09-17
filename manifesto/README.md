@@ -1,6 +1,6 @@
 # Manifesto analysis
 
-![RILE score of Swedish parties over time](/urdh/r-things/raw/master/manifesto/sample.png)
+![RILE score of Swedish parties over time](sample.png?raw=true)
 
 This R script uses data from [the Manifesto Project][manifesto-project] to analyze and generate various time series based on the data available from Swedish party manifestos. This includes position on a left-right scale, opinion in some political fields and similar data.
 
