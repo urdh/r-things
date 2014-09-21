@@ -13,180 +13,71 @@ levels(sweden$party) <- c("MP",
 sweden$party <- factor(sweden$party, levels=levels(sweden$party)[c(2,3,1,8,5,4,6,7,9)])
 colors <- c("#b70410", "#f9232b", "#79cf49", "#00993c", "#211974",
             "#5cb7e9", "#0049d8", "#dedd37", "#ffff41")
+# These are the additive scaled dimensions from Lowe et.al., pp. 135 sqq.
+freemarket.l <- c(401, 402)
+freemarket.r <- c(403, 412, 413, 415)
+environment.l <- c(501, 416)
+environment.r <- c(410)
+stateconomy.l <- c(403, 404, 406, 412, 413, 504, 506, 701)
+stateconomy.r <- c(401, 402, 407, 414, 505)
+stateservices.l <- c(504, 506)
+stateservices.r <- c(505, 507)
+logrile.l <- c(103, 105, 106, 107, 202, 403, 404, 406, 412, 413, 504, 506, 701)
+logrile.r <- c(104, 201, 203, 305, 401, 402, 407, 414, 505, 601, 603, 605, 606)
+logplaneco.l <- c(403, 404, 412)
+logplaneco.r <- c(401, 414)
+libcons.l <- c(103, 105, 106, 107, 202)
+libcons.r <- c(104, 201, 203, 305, 601, 603, 605, 606)
+logitm <- function(dataset, vars.l, vars.r) {
+    log(rowSums(dataset[paste0("per", vars.l)] + 0.5) / rowSums(dataset[paste0("per", vars.r)] + 0.5))
+}
+sweden$freemarket <- logitm(sweden, freemarket.l, freemarket.r)
+sweden$environment <- logitm(sweden, environment.l, environment.r)
+sweden$stateconomy <- logitm(sweden, stateconomy.l, stateconomy.r)
+sweden$stateservices <- logitm(sweden, stateservices.l, stateservices.r)
+sweden$logrile <- -logitm(sweden, logrile.l, logrile.r)
+sweden$logplaneco <- logitm(sweden, logplaneco.l, logplaneco.r)
+sweden$libcons <- logitm(sweden, libcons.l, libcons.r)
+# These are logit scales for bipolar categories (again, Lowe et.al., pp. 131 sqq.)
+logits <- function(dataset, var.l, var.r) {
+    log(rowSums(dataset[paste0("per", var.l)] + 0.5) / rowSums(dataset[paste0("per", var.r)] + 0.5))
+}
+sweden$foreignalliances <- logits(sweden, 101, 102)
+sweden$militarism <- -logits(sweden, 105, 104)
+sweden$internationalism <- logits(sweden, 107, 109)
+sweden$logeu <- logits(sweden, 108, 110)
+sweden$constitutionalism <- logits(sweden, 203, 204)
+sweden$decentralization <- logits(sweden, 301, 302)
+sweden$protectionism <- logits(sweden, 406, 407)
+sweden$keynesian <- logits(sweden, 409, 414)
+sweden$nationalism <- -logits(sweden, 602, 601)
+sweden$morality <- -logits(sweden, 604, 603)
+sweden$multiculturalism <- logits(sweden, 607, 608)
+sweden$laborpolicy <- logits(sweden, 701, 702)
+sweden$logwelfare <- logits(sweden, 504, 505)
+sweden$education <- logits(sweden, 506, 507)
 
-## TODO: Plot average and/or block in at least some of these
+## TODO: plot interesting 2d graph(s)
 library(ggplot2)
 library(reshape2)
 library(Hmisc)
-# Seats in Riksdagen (absolute)
-pdf("absseat.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=absseat, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Platser i Riksdagen") + ylim(0, 200)
-)
-dev.off()
 
-# Seats in Riksdagen (relative)
-pdf("relseat.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=(absseat / totseats), group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Andel platser i Riksdagen") + ylim(0, 0.6)
-)
-dev.off()
+# Plot all variables from Lowe et.al.
+vars <- c("freemarket", "environment", "stateconomy", "stateservices", "logrile",
+          "logplaneco", "libcons", "foreignalliances", "militarism", "internationalism",
+          "logeu", "constitutionalism", "decentralization", "protectionism", "keynesian",
+          "nationalism", "morality", "multiculturalism", "laborpolicy", "logwelfare",
+          "education")
+for(var in vars) {
+    pdf(paste0(var, ".pdf"), width=11.70, height=4.1)
+    p <- ggplot(sweden, aes_string(x="edate", y=var, group="party", colour="party"))
+    print(
+      p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
+          labs(x = "År") +
+          stat_summary(aes(group=country), fun.data="mean_cl_normal", geom="smooth", colour="#666666", fill="#cccccc")
+    )
+    dev.off()
+}
 
-# Election results, percent
-pdf("pervote.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=pervote, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Valresultat (%)") + ylim(0, 60) +
-    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed")
-)
-dev.off()
-
-# Left-right score
-pdf("rile.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=rile, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "RILE-poäng") + ylim(-100, 100) +
-    stat_summary(aes(group=country), fun.data="mean_cl_normal", geom="smooth", colour="#333333")
-)
-dev.off()
-
-# Facets of economy, welfare etc
-pdf("facets.pdf", width=11.70, height=8.27)
-facetize <- melt(
-  subset(sweden, select=c(edate, party, planeco, markeco, welfare, intpeace)),
-                 id.vars = c("edate", "party"))
-levels(facetize$variable) <- c("Planekonomi", "Marknadsekonomi",
-                               "Välfärd", "Internationell fred")
-p <- ggplot(facetize, aes(x=edate, y=value, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(0, 100) +
-    facet_grid(variable ~ .)
-)
-dev.off()
-
-# Military score
-pdf("military.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=(per104 - per105), group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(-25, 25) +
-    stat_summary(aes(group=country), fun.data="mean_cl_normal", geom="smooth", colour="#333333")
-)
-dev.off()
-
-# EU score
-pdf("eu.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=(per108 - per110), group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(-25, 25) +
-    stat_summary(aes(group=country), fun.data="mean_cl_normal", geom="smooth", colour="#333333")
-)
-dev.off()
-
-# Human rights score
-pdf("human-rights.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=per201, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(0, 25)
-)
-dev.off()
-
-# Democracy score
-pdf("democracy.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=per202, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(0, 25)
-)
-dev.off()
-
-# Anti-growth economy score
-pdf("anti-growth.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=per416, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(-25, 25)
-)
-dev.off()
-
-# Environmental protection score
-pdf("environment.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=per501, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(0, 50)
-)
-dev.off()
-
-# Culture score
-pdf("culture.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=per502, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(0, 25)
-)
-dev.off()
-
-# Equality score
-pdf("equality.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=per503, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(0, 50)
-)
-dev.off()
-
-# Welfare score
-pdf("welfare.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=(per504 - per505), group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(-50, 50)
-)
-dev.off()
-
-# Education score
-pdf("education.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=(per506 - per507), group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(-25, 25)
-)
-dev.off()
-
-# Law and order score
-pdf("law-order.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=per605, group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(0, 25)
-)
-dev.off()
-
-# Multiculturalism score
-pdf("multiculture.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=(per607 - per608), group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(-25, 25) +
-    stat_summary(aes(group=country), fun.data="mean_cl_normal", geom="smooth", colour="#333333")
-)
-dev.off()
-
-# Labour groups score
-pdf("labour.pdf", width=11.70, height=4.1)
-p <- ggplot(sweden, aes(x=edate, y=(per701 - per702), group=party, colour=party))
-print(
-p + geom_line() + geom_point() + scale_colour_manual(name="Parti", values=colors) +
-    labs(x = "Valår", y = "Poäng") + ylim(-25, 25)
-)
-dev.off()
+# References
+# Lowe, W., Benoit, K., Mikhaylov, S. and Laver, M. 2011. ”Scaling Policy Preferences from Coded Political Texts.” Legislative Studies Quarterly 36 (1): 123–155.
