@@ -71,10 +71,34 @@ pollData$Series <- revalue(pollData$Series, c("Uncertain" = "Osäkra"))
 colors <- c("#b70410", "#f9232b", "#79cf49", "#00993c", "#211974",
 						"#5cb7e9", "#0049d8", "#dedd37", "#e2328d", "#cccccc")
 
+# Create data for election results
+elections <- data.frame(
+	PublDate = c(as.Date("2002-09-15"), as.Date("2006-09-17"),
+							 as.Date("2010-09-19"), as.Date("2014-09-14")),
+	M = c(15.26, 26.23, 30.06, 23.33),
+	FP = c(13.39, 7.54, 7.06, 5.42),
+	C = c(6.19, 7.88, 6.56, 6.11),
+	KD = c(9.15, 6.59, 5.60, 4.57),
+	S = c(39.85, 34.99, 30.66, 31.01),
+	V = c(8.39, 5.85, 5.60, 5.72),
+	MP = c(4.65, 5.24, 7.34, 6.89),
+	SD = c(1.44, 2.93, 5.70, 12.86),
+	FI = c(NA, 0.68, 0.40, 3.12),
+	Uncertain = c(NA, NA, NA, NA)
+)
+electionData <- melt(elections, id.vars = "PublDate", parties,
+								variable.name = "Series", value.name = "Value")
+electionData$Index <- electionData$PublDate
+electionData$Series <- factor(electionData$Series,
+															levels = levels(electionData$Series)[c(6,5,7,3,4,2,1,8,9,10)])
+electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra"))
+electionData <- subset(electionData, Index > as.Date("2003-01-01"))
+
 # Actual plot
 do_plot <- function () {
 	p <- ggplot(derivData, aes(x = Index, y = Value, color = Series, group = Series))
-	p + geom_point(data = pollData, alpha = 0.25) +
+	p + geom_point(data = pollData, alpha = 0.125) +
+			geom_point(data = electionData, shape = 18) +
 	    stat_rollapplyr(width = 84, FUN = mean, na.rm = TRUE) +
 	    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed") +
 	    scale_colour_manual(name = "Parti", values = colors) +
