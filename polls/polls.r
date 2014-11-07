@@ -30,7 +30,11 @@ stat_rollapplyr <- StatRollApplyR$new
 # Load data
 data_url <- "https://github.com/MansMeg/SwedishPolls/raw/master/Data/Polls.csv"
 polls <- repmis::source_data(data_url, sep = ",", dec = ".", header = TRUE)
-parties <- c("M", "FP", "C", "KD", "S", "V", "MP", "SD", "FI", "Uncertain")
+parties <- c("M", "FP", "C", "KD", "S", "V", "MP", "SD", "FI", "Uncertain",
+						 "RightBlock", "LeftBlock")
+# Calculate block/coalition values
+polls$RightBlock <- polls$M  + polls$FP + polls$C  + polls$KD
+polls$LeftBlock  <- polls$S  + polls$MP + polls$V
 # Convert dates to proper format
 polls$PublDate <- as.Date(polls$PublDate)
 polls$collectPeriodTo <- as.Date(polls$collectPeriodTo)
@@ -58,18 +62,28 @@ polls.zoo <- subset(polls.zoo, select = parties)
 derivData <- fortify(polls.zoo, NA, melt = TRUE)
 derivData$Value <- as.numeric(levels(derivData$Value))[derivData$Value]
 derivData$Series <- factor(derivData$Series,
-                           levels = levels(derivData$Series)[c(6,5,7,3,4,2,1,8,9,10)])
-derivData$Series <- revalue(derivData$Series, c("Uncertain" = "Osäkra"))
+                           levels = levels(derivData$Series)[c(6,5,7,3,4,2,1,8,9,10,11,12)])
+derivData$Series <- revalue(derivData$Series, c("Uncertain"  = "Osäkra",
+																								"RightBlock" = "Alliansen",
+																								"LeftBlock"  = "Rödgröna"))
 # Do the same for non-continous non-averaged data
 pollData <- melt(polls, id.vars = "PublDate", parties,
 								 variable.name = "Series", value.name = "Value")
 pollData$Index <- pollData$PublDate
 pollData$Series <- factor(pollData$Series,
-													levels = levels(pollData$Series)[c(6,5,7,3,4,2,1,8,9,10)])
-pollData$Series <- revalue(pollData$Series, c("Uncertain" = "Osäkra"))
+													levels = levels(pollData$Series)[c(6,5,7,3,4,2,1,8,9,10,11,12)])
+pollData$Value[pollData$Series == "RightBlock"] <- NA
+pollData$Value[pollData$Series == "LeftBlock"] <- NA
+pollData$Series <- revalue(pollData$Series, c("Uncertain"  = "Osäkra",
+																							"RightBlock" = "Alliansen",
+																							"LeftBlock"  = "Rödgröna"))
 # Define the color scheme for the plot (colors from http://sv.wikipedia.org/wiki/Mall:Partifärg)
 colors <- c("#b70410", "#f9232b", "#79cf49", "#00993c", "#211974",
-						"#5cb7e9", "#0049d8", "#dedd37", "#e2328d", "#cccccc")
+						"#5cb7e9", "#0049d8", "#dedd37", "#e2328d", "#cccccc",
+						"#0049d8", "#f9232b") # blocks take colors from (M) and (S) resp.
+# Line type and alpha to separate parties from blocks/coalitions
+lineType <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2)
+alphas <- c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0.5)
 
 # Create data for election results
 elections <- data.frame(
@@ -84,29 +98,36 @@ elections <- data.frame(
 	MP = c(4.65, 5.24, 7.34, 6.89),
 	SD = c(1.44, 2.93, 5.70, 12.86),
 	FI = c(NA, 0.68, 0.40, 3.12),
-	Uncertain = c(NA, NA, NA, NA)
+	Uncertain = c(NA, NA, NA, NA),
+	RightBlock = c(NA, NA, NA, NA),
+	LeftBlock = c(NA, NA, NA, NA)
 )
 electionData <- melt(elections, id.vars = "PublDate", parties,
 								variable.name = "Series", value.name = "Value")
 electionData$Index <- electionData$PublDate
 electionData$Series <- factor(electionData$Series,
-															levels = levels(electionData$Series)[c(6,5,7,3,4,2,1,8,9,10)])
-electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra"))
+													levels = levels(electionData$Series)[c(6,5,7,3,4,2,1,8,9,10,11,12)])
+electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra",
+																											"RightBlock" = "Alliansen",
+																											"LeftBlock"  = "Rödgröna"))
 electionData <- subset(electionData, Index > as.Date("2003-01-01"))
 
 # Actual plot
 do_plot <- function () {
-	p <- ggplot(derivData, aes(x = Index, y = Value, color = Series, group = Series))
+	p <- ggplot(derivData, aes(x = Index, y = Value, color = Series, group = Series,
+																									 linetype = Series, alpha = Series))
 	p + geom_point(data = pollData, alpha = 0.125) +
 			geom_point(data = electionData, shape = 18) +
 	    stat_rollapplyr(width = 84, FUN = mean, na.rm = TRUE) +
 	    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed") +
 	    scale_colour_manual(name = "Parti", values = colors) +
+			scale_linetype_manual(name = "Parti", values = lineType) +
+			scale_alpha_manual(name = "Parti", values = alphas) +
 	    labs(x = "Datum", y = "Stöd (%)") +
 	    scale_x_date(breaks = date_breaks("1 year"),
 	                 minor_breaks = date_breaks("1 month"),
 	                 labels = date_format("%Y")) +
-	    scale_y_continuous(breaks = 0:10*5, minor_breaks = 0:50, limits = c(0, 50))
+	    scale_y_continuous(breaks = 0:12*5, minor_breaks = 0:60, limits = c(0, 60))
 }
 
 # Outputs
