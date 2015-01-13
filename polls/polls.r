@@ -42,17 +42,18 @@ polls$collectPeriodFrom <- as.Date(polls$collectPeriodFrom)
 # Remove NA polls
 polls$PublDate[is.na(polls$PublDate)] <- polls$collectPeriodTo[is.na(polls$PublDate)]
 polls$collectPeriodTo[is.na(polls$collectPeriodTo)] <- polls$PublDate[is.na(polls$collectPeriodTo)]
-polls$collectPeriodFrom[is.na(polls$collectPeriodFrom)] <- polls$PublDate[is.na(polls$collectPeriodFrom)]
-polls <- subset(polls, !is.na(PublDate) & !is.na(n))
+polls <- subset(polls, !is.na(collectPeriodFrom) & !is.na(PublDate) & !is.na(n))
+# Calculate some kind of "interview-per-day" value
+polls$perDay <- polls$n / as.numeric(polls$collectPeriodTo - polls$collectPeriodFrom + 1)
 # Expand polls so result covers entire measurement period
 polls$nrow <- 1:nrow(polls)
 polls.dt <- data.table(polls)
 polls.dt <- polls.dt[, list(PollDate=seq(collectPeriodFrom,collectPeriodTo,by="day")), by="nrow"]
 polls.dt <- merge(polls.dt, data.table(polls), by=c("nrow"))
 # Produce a weighted mean of polls for each day
-polls.dt[, `:=`(parties, Map('*', polls.dt[, parties, with=F], polls.dt[, "n", with=F])), with=F]
-polls.dt <- polls.dt[, lapply(.SD, sum), by = "PollDate", .SDcols = c(parties, "n")]
-polls.dt[, `:=`(parties, Map('/', polls.dt[, parties, with=F], polls.dt[, "n", with=F])), with=F]
+polls.dt[, `:=`(parties, Map('*', polls.dt[, parties, with=F], polls.dt[, "perDay", with=F])), with=F]
+polls.dt <- polls.dt[, lapply(.SD, sum), by = "PollDate", .SDcols = c(parties, "perDay")]
+polls.dt[, `:=`(parties, Map('/', polls.dt[, parties, with=F], polls.dt[, "perDay", with=F])), with=F]
 # Create a continuous time series using the data
 polls.zoo <- zoo(polls.dt, polls.dt$PollDate)
 polls.zoo <- merge(polls.zoo, zoo(,seq(start(polls.zoo), end(polls.zoo), by = 1)), all = TRUE)
