@@ -18,9 +18,10 @@ StatRollApplyR <- proto(ggplot2:::Stat, {
 	calculate_groups <- function(., data, scales, ...) {
 		.super$calculate_groups(., data, scales, ...)
 	}
-	calculate <- function(., data, scales, width, FUN, fill=NA, ...) {
+	calculate <- function(., data, scales, width, FUN, lowlimit = 0.0, fill=NA, ...) {
 		require(zoo)
 		filtered <- rollapplyr(data$y, width, FUN, fill=fill, ...)
+		filtered[filtered < lowlimit] <- NA
 		result <- data.frame(x=data$x, y=filtered)
 		return(result)
 	}
@@ -54,7 +55,7 @@ polls.dt <- polls.dt[, list(PollDate=seq(collectPeriodFrom,collectPeriodTo,by="d
 polls.dt <- merge(polls.dt, data.table(polls), by=c("nrow"))
 # Produce a weighted mean of polls for each day
 polls.dt[, `:=`(parties, Map('*', polls.dt[, parties, with=F], polls.dt[, "perDay", with=F])), with=F]
-polls.dt <- polls.dt[, lapply(.SD, sum), by = "PollDate", .SDcols = c(parties, "perDay")]
+polls.dt <- polls.dt[, lapply(.SD, sum, na.rm = TRUE), by = "PollDate", .SDcols = c(parties, "perDay")]
 polls.dt[, `:=`(parties, Map('/', polls.dt[, parties, with=F], polls.dt[, "perDay", with=F])), with=F]
 # Create a continuous time series using the data
 polls.zoo <- zoo(polls.dt, polls.dt$PollDate)
@@ -117,7 +118,7 @@ do_plot <- function () {
 																									 linetype = Series, alpha = Series))
 	p + geom_point(data = pollData, alpha = 0.125) +
 			geom_point(data = electionData, shape = 18) +
-	    stat_rollapplyr(width = 84, FUN = mean, na.rm = TRUE) +
+	    stat_rollapplyr(width = 84, FUN = mean, lowlimit = 1.0, na.rm = TRUE) +
 	    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed") +
 	    scale_colour_manual(name = "Parti", values = colors) +
 			scale_linetype_manual(name = "Parti", values = lineType) +
