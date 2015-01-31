@@ -30,7 +30,7 @@ stat_rollapplyr <- StatRollApplyR$new
 
 # Load data
 data_url <- "https://github.com/MansMeg/SwedishPolls/raw/master/Data/Polls.csv"
-polls <- repmis::source_data(data_url, sep = ",", dec = ".", header = TRUE)
+polls <- repmis::source_data(data_url, sep = ",", header = TRUE)
 parties <- c("M", "FP", "C", "KD", "S", "V", "MP", "SD", "FI", "Uncertain",
 						 "RightBlock", "LeftBlock")
 # Calculate block/coalition values
