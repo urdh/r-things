@@ -27,25 +27,6 @@ StatRollApplyR <- proto(ggplot2:::Stat, {
 	}
 })
 stat_rollapplyr <- StatRollApplyR$new
-# Helper function for rolling standard deviation in ggplot2
-StatRollApplyRRibbon <- proto(ggplot2:::Stat, {
-	required_aes <- c("x", "y")
-	default_geom <- function(.) GeomRibbon
-	objname <- "rollapplyr_ribbon"
-	calculate_groups <- function(., data, scales, ...) {
-		.super$calculate_groups(., data, scales, ...)
-	}
-	calculate <- function(., data, scales, width, FUN1, FUN2, lowlimit = 0.0, fill=NA, ...) {
-		require(zoo)
-		filtered <- rollapplyr(data$y, width, FUN1, fill=fill, ...)
-		deviations <- rollapplyr(data$y, width, FUN2, fill=fill, ...)
-		filtered[filtered < lowlimit] <- NA
-		deviations[filtered < lowlimit] <- NA
-		result <- data.frame(x=data$x, ymin=filtered-deviations, ymax=filtered+deviations)
-		return(result)
-	}
-})
-stat_rollapplyr_ribbon <- StatRollApplyRRibbon$new
 
 # Load data
 data_url <- "https://github.com/MansMeg/SwedishPolls/raw/master/Data/Polls.csv"
@@ -134,21 +115,16 @@ electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra",
 electionData <- subset(electionData, Index > as.Date("2003-01-01"))
 
 # Actual plot
-sd196 <- function(x) { sd(x) * 1.96 }
 do_plot <- function () {
 	p <- ggplot(derivData, aes(x = Index, y = Value, color = Series, group = Series,
-																									 linetype = Series, alpha = Series,
-																									 fill = Series))
+																									 linetype = Series, alpha = Series))
 	p + geom_point(data = pollData, alpha = 0.125) +
 			geom_point(data = electionData, shape = 18) +
 	    stat_rollapplyr(width = 84, FUN = mean, lowlimit = 1.0, na.rm = TRUE) +
-	    stat_rollapplyr_ribbon(width = 84, FUN1 = mean, FUN2 = sd196,
-														 lowlimit = 1.0, na.rm = TRUE, colour = NA, alpha=0.1) +
 	    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed") +
 	    scale_colour_manual(name = "Parti", values = colors) +
 			scale_linetype_manual(name = "Parti", values = lineType) +
 			scale_alpha_manual(name = "Parti", values = alphas) +
-			scale_fill_manual(name = "Parti", values = colors) +
 	    labs(x = "Datum", y = "Stöd (%)") +
 	    scale_x_date(breaks = date_breaks("1 year"),
 	                 minor_breaks = date_breaks("1 month"),
