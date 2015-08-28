@@ -20,7 +20,7 @@ StatRollApplyR <- proto(ggplot2:::Stat, {
 	}
 	calculate <- function(., data, scales, width, FUN, lowlimit = 0.0, fill=NA, ...) {
 		require(zoo)
-		filtered <- rollapplyr(data$y, width, FUN, fill=fill, ...)
+		filtered <- rollapplyr(data$y, width, FUN, fill=fill, ..., align="center")
 		filtered[filtered < lowlimit] <- NA
 		result <- data.frame(x=data$x, y=filtered)
 		return(result)
@@ -115,12 +115,12 @@ electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra",
 electionData <- subset(electionData, Index > as.Date("2003-01-01"))
 
 # Actual plot
-do_plot <- function () {
+do_plot <- function (moving_average_stat) {
 	p <- ggplot(derivData, aes(x = Index, y = Value, color = Series, group = Series,
 																									 linetype = Series, alpha = Series))
 	p + geom_point(data = pollData, alpha = 0.125) +
 			geom_point(data = electionData, shape = 18) +
-	    stat_rollapplyr(width = 84, FUN = mean, lowlimit = 1.0, na.rm = TRUE) +
+	    moving_average_stat +
 	    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed") +
 	    scale_colour_manual(name = "Parti", values = colors) +
 			scale_linetype_manual(name = "Parti", values = lineType) +
@@ -134,20 +134,36 @@ do_plot <- function () {
 
 # Outputs
 png("polls.png", width = 1920, height = 1080)
-print(do_plot())
+print(do_plot(stat_rollapplyr(width = 84, FUN = median, lowlimit = 1.0, na.rm = TRUE)))
 dev.off()
 
 pdf("polls.pdf", width = 11.692, height = 8.267)
-print(do_plot())
+print(do_plot(stat_rollapplyr(width = 84, FUN = median, lowlimit = 1.0, na.rm = TRUE)))
 dev.off()
 
-#library(tikzDevice)
-#tikz("polls.tikz", width = 11.692, height = 8.267)
-#print(do_plot())
-#dev.off()
-
-#library(SVGAnnotation)
-#svg("polls.svg", width = 11.692, height = 8.267)
-#print(do_plot())
-#dev.off()
-#radioShowHide("polls.svg", labels = c("V","S","MP","C","KD","FP","M","SD","FI","Uncertain"))
+# # Simple moving average
+# pdf("polls-sma.pdf", width = 11.692, height = 8.267)
+# print(do_plot(stat_rollapplyr(width = 84, FUN = mean, lowlimit = 1.0, na.rm = TRUE)))
+# dev.off()
+#
+# # Weighted moving average
+# wmean <- function(x, na.rm = FALSE) { weighted.mean(x, seq(1, 0, length.out=length(x)), na.rm = na.rm) }
+# pdf("polls-wma.pdf", width = 11.692, height = 8.267)
+# print(do_plot(stat_rollapplyr(width = 84, FUN = wmean, lowlimit = 1.0, na.rm = TRUE)))
+# dev.off()
+#
+# # Exponentially weighted moving average
+# emaweights<-function(alpha, m) {
+#   i<-1:m
+#   sm<-sum((alpha*(1-alpha)^(1-i)))
+#   return(((alpha*(1-alpha)^(1-i)))/sm)
+# }
+# emean <- function(x, na.rm = FALSE) { weighted.mean(x, emaweights(1/length(x), length(x)), na.rm = na.rm) }
+# pdf("polls-ema.pdf", width = 11.692, height = 8.267)
+# print(do_plot(stat_rollapplyr(width = 84, FUN = emean, lowlimit = 1.0, na.rm = TRUE)))
+# dev.off()
+#
+# # Simple moving median
+# pdf("polls-smm.pdf", width = 11.692, height = 8.267)
+# print(do_plot(stat_rollapplyr(width = 84, FUN = median, lowlimit = 1.0, na.rm = TRUE)))
+# dev.off()
