@@ -13,17 +13,33 @@ library(proto)
 # Helper function for rolling mean in ggplot2
 StatRollApplyR <- proto(ggplot2:::Stat, {
 	required_aes <- c("x", "y")
-	default_geom <- function(.) GeomLine
+	default_geom <- function(.) GeomSmooth
 	objname <- "rollapplyr"
 	calculate_groups <- function(., data, scales, ...) {
 		.super$calculate_groups(., data, scales, ...)
 	}
-	calculate <- function(., data, scales, width, FUN, lowlimit = 0.0, fill=NA, ...) {
+	calculate <- function(., data, scales, width, FUN, lowlimit = 0.0, na.fill=NA, ...) {
 		require(zoo)
-		filtered <- rollapplyr(data$y, width, FUN, fill=fill, ..., align="center")
+		# TODO make this a parameter
+		ignored_group <- (data$group[1] >= 10)
+		with_ribbon <- (!is.null(data$ymax) && !is.null(data$ymin)) && !ignored_group;
+
+		filtered <- rollapplyr(data$y, width, FUN, fill=na.fill, ..., align="center")
 		filtered[filtered < lowlimit] <- NA
-		result <- data.frame(x=data$x, y=filtered)
-		return(result)
+
+		if(with_ribbon) {
+			minvals <- rollapplyr(data$ymin, floor(width/2), min, fill=c("extend"), ..., align="center")
+			maxvals <- rollapplyr(data$ymax, floor(width/2), max, fill=c("extend"), ..., align="center")
+			minvals[minvals == Inf] <- NA
+			maxvals[maxvals == -Inf] <- NA
+			minvals <- rollapplyr(minvals, width, mean, fill=na.fill, ..., align="center")
+			maxvals <- rollapplyr(maxvals, width, mean, fill=na.fill, ..., align="center")
+			minvals[filtered < lowlimit] <- NA
+			maxvals[filtered < lowlimit] <- NA
+			return(data.frame(x=data$x, y=filtered, ymin=minvals, ymax=maxvals))
+		} else {
+			return(data.frame(x=data$x, y=filtered))
+		}
 	}
 })
 stat_rollapplyr <- StatRollApplyR$new
@@ -51,6 +67,8 @@ polls$nrow <- 1:nrow(polls)
 polls.dt <- data.table(polls)
 polls.dt <- polls.dt[, list(PollDate=seq(collectPeriodFrom,collectPeriodTo,by="day")), by="nrow"]
 polls.dt <- merge(polls.dt, data.table(polls), by=c("nrow"))
+polls.dt.min <- copy(polls.dt)
+polls.dt.max <- copy(polls.dt)
 # Produce a weighted mean of polls for each day
 polls.dt[, `:=`(parties, Map('*', polls.dt[, parties, with=F], polls.dt[, "perDay", with=F])), with=F]
 polls.dt <- polls.dt[, lapply(.SD, sum, na.rm = TRUE), by = "PollDate", .SDcols = c(parties, "perDay")]
@@ -60,6 +78,16 @@ polls.zoo <- zoo(polls.dt, polls.dt$PollDate)
 polls.zoo <- merge(polls.zoo, zoo(,seq(start(polls.zoo), end(polls.zoo), by = 1)), all = TRUE)
 polls.zoo <- subset(polls.zoo, select = parties)
 
+# Do stuff with the copy too
+polls.dt.min <- polls.dt.min[, lapply(.SD, min, na.rm = TRUE), by = "PollDate", .SDcols = c(parties)]
+polls.zoo.min <- zoo(polls.dt.min, polls.dt.min$PollDate)
+polls.zoo.min <- merge(polls.zoo.min, zoo(,seq(start(polls.zoo.min), end(polls.zoo.min), by = 1)), all = TRUE)
+polls.zoo.min <- subset(polls.zoo.min, select = parties)
+polls.dt.max <- polls.dt.max[, lapply(.SD, max, na.rm = TRUE), by = "PollDate", .SDcols = c(parties)]
+polls.zoo.max <- zoo(polls.dt.max, polls.dt.max$PollDate)
+polls.zoo.max <- merge(polls.zoo.max, zoo(,seq(start(polls.zoo.max), end(polls.zoo.max), by = 1)), all = TRUE)
+polls.zoo.max <- subset(polls.zoo.max, select = parties)
+
 # Transform back to data frame and reorder parties
 derivData <- fortify(polls.zoo, NA, melt = TRUE)
 derivData$Value <- as.numeric(levels(derivData$Value))[derivData$Value]
@@ -68,6 +96,14 @@ derivData$Series <- factor(derivData$Series,
 derivData$Series <- revalue(derivData$Series, c("Uncertain"  = "Osäkra",
 																								"RightBlock" = "Alliansen",
 																								"LeftBlock"  = "Rödgröna"))
+# Min/max as well
+pollDataMin <- fortify(polls.zoo.min, NA, melt = TRUE)
+pollDataMax <- fortify(polls.zoo.max, NA, melt = TRUE)
+derivData$MinValue <- as.numeric(levels(pollDataMin$Value))[pollDataMin$Value]
+derivData$MaxValue <- as.numeric(levels(pollDataMax$Value))[pollDataMax$Value]
+derivData$MinValue[derivData$MinValue == Inf] = NA
+derivData$MaxValue[derivData$MaxValue == -Inf] = NA
+
 # Do the same for non-continous non-averaged data
 pollData <- melt(polls, id.vars = "PublDate", parties,
 								 variable.name = "Series", value.name = "Value")
@@ -76,6 +112,8 @@ pollData$Series <- factor(pollData$Series,
 													levels = levels(pollData$Series)[c(6,5,7,3,4,2,1,8,9,10,11,12)])
 pollData$Value[pollData$Series == "RightBlock"] <- NA
 pollData$Value[pollData$Series == "LeftBlock"] <- NA
+pollData$MinValue <- pollData$Value
+pollData$MaxValue <- pollData$Value
 pollData$Series <- revalue(pollData$Series, c("Uncertain"  = "Osäkra",
 																							"RightBlock" = "Alliansen",
 																							"LeftBlock"  = "Rödgröna"))
@@ -107,6 +145,8 @@ elections <- data.frame(
 electionData <- melt(elections, id.vars = "PublDate", parties,
 								variable.name = "Series", value.name = "Value")
 electionData$Index <- electionData$PublDate
+electionData$MinValue <- electionData$Value
+electionData$MaxValue <- electionData$Value
 electionData$Series <- factor(electionData$Series,
 													levels = levels(electionData$Series)[c(6,5,7,3,4,2,1,8,9,10,11,12)])
 electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra",
@@ -115,55 +155,31 @@ electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra",
 electionData <- subset(electionData, Index > as.Date("2003-01-01"))
 
 # Actual plot
-do_plot <- function (moving_average_stat) {
-	p <- ggplot(derivData, aes(x = Index, y = Value, color = Series, group = Series,
-																									 linetype = Series, alpha = Series))
-	p + geom_point(data = pollData, alpha = 0.125) +
-			geom_point(data = electionData, shape = 18) +
-	    moving_average_stat +
-	    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed") +
-	    scale_colour_manual(name = "Parti", values = colors) +
-			scale_linetype_manual(name = "Parti", values = lineType) +
-			scale_alpha_manual(name = "Parti", values = alphas) +
-	    labs(x = "Datum", y = "Stöd (%)") +
-	    scale_x_date(breaks = date_breaks("1 year"),
-	                 minor_breaks = date_breaks("1 month"),
-	                 labels = date_format("%Y")) +
-	    scale_y_continuous(breaks = 0:12*5, minor_breaks = 0:60, limits = c(0, 60))
+get_plot <- function () {
+	p <- ggplot(derivData, aes(x = Index, y = Value, ymin = MinValue, ymax = MaxValue,
+														 color = Series, group = Series, linetype = Series, alpha = Series))
+	return(
+		p + geom_point(data = pollData, alpha = 0.125) +
+				geom_point(data = electionData, shape = 18) +
+		    stat_rollapplyr(width = 84, FUN = median, lowlimit = 1.0, na.rm = TRUE, alpha = 0.15) +
+		    geom_hline(yintercept = 4, colour = "#333333", linetype = "dashed") +
+		    scale_colour_manual(name = "Parti", values = colors) +
+				scale_linetype_manual(name = "Parti", values = lineType) +
+				scale_alpha_manual(name = "Parti", values = alphas) +
+		    labs(x = "Datum", y = "Stöd (%)") +
+		    scale_x_date(breaks = date_breaks("1 year"),
+		                 minor_breaks = date_breaks("1 month"),
+		                 labels = date_format("%Y")) +
+		    scale_y_continuous(breaks = 0:12*5, minor_breaks = 0:60, limits = c(0, 60))
+	)
 }
+plot <- get_plot()
 
 # Outputs
 png("polls.png", width = 1920, height = 1080)
-print(do_plot(stat_rollapplyr(width = 84, FUN = median, lowlimit = 1.0, na.rm = TRUE)))
+print(plot)
 dev.off()
 
 pdf("polls.pdf", width = 11.692, height = 8.267)
-print(do_plot(stat_rollapplyr(width = 84, FUN = median, lowlimit = 1.0, na.rm = TRUE)))
+print(plot)
 dev.off()
-
-# # Simple moving average
-# pdf("polls-sma.pdf", width = 11.692, height = 8.267)
-# print(do_plot(stat_rollapplyr(width = 84, FUN = mean, lowlimit = 1.0, na.rm = TRUE)))
-# dev.off()
-#
-# # Weighted moving average
-# wmean <- function(x, na.rm = FALSE) { weighted.mean(x, seq(1, 0, length.out=length(x)), na.rm = na.rm) }
-# pdf("polls-wma.pdf", width = 11.692, height = 8.267)
-# print(do_plot(stat_rollapplyr(width = 84, FUN = wmean, lowlimit = 1.0, na.rm = TRUE)))
-# dev.off()
-#
-# # Exponentially weighted moving average
-# emaweights<-function(alpha, m) {
-#   i<-1:m
-#   sm<-sum((alpha*(1-alpha)^(1-i)))
-#   return(((alpha*(1-alpha)^(1-i)))/sm)
-# }
-# emean <- function(x, na.rm = FALSE) { weighted.mean(x, emaweights(1/length(x), length(x)), na.rm = na.rm) }
-# pdf("polls-ema.pdf", width = 11.692, height = 8.267)
-# print(do_plot(stat_rollapplyr(width = 84, FUN = emean, lowlimit = 1.0, na.rm = TRUE)))
-# dev.off()
-#
-# # Simple moving median
-# pdf("polls-smm.pdf", width = 11.692, height = 8.267)
-# print(do_plot(stat_rollapplyr(width = 84, FUN = median, lowlimit = 1.0, na.rm = TRUE)))
-# dev.off()
