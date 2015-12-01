@@ -44,6 +44,20 @@ StatRollApplyR <- proto(ggplot2:::Stat, {
 })
 stat_rollapplyr <- StatRollApplyR$new
 
+# Helper map for converting columns to party names
+partyNameMap <- c("M" = "Moderaterna",
+								  "FP" = "Liberalerna",
+									"C" = "Centerpartiet",
+									"KD" = "Kristdemokraterna",
+									"S" = "Socialdemokraterna",
+									"V" = "Vänsterpartiet",
+									"MP" = "Miljöpartiet",
+									"SD" = "Sverigedemokraterna",
+									"FI" = "Feministiskt initiativ",
+									"Uncertain" = "Osäkra",
+									"RightBlock" = "Alliansen",
+									"LeftBlock" = "Rödgröna")
+
 # Load data
 data_url <- "https://github.com/MansMeg/SwedishPolls/raw/master/Data/Polls.csv"
 polls <- repmis::source_data(data_url, sep = ",", header = TRUE)
@@ -93,9 +107,7 @@ derivData <- fortify(polls.zoo, NA, melt = TRUE)
 derivData$Value <- as.numeric(levels(derivData$Value))[derivData$Value]
 derivData$Series <- factor(derivData$Series,
                            levels = levels(derivData$Series)[c(6,5,7,3,4,2,1,8,9,10,11,12)])
-derivData$Series <- revalue(derivData$Series, c("Uncertain"  = "Osäkra",
-																								"RightBlock" = "Alliansen",
-																								"LeftBlock"  = "Rödgröna"))
+derivData$Series <- revalue(derivData$Series, partyNameMap)
 # Min/max as well
 pollDataMin <- fortify(polls.zoo.min, NA, melt = TRUE)
 pollDataMax <- fortify(polls.zoo.max, NA, melt = TRUE)
@@ -114,9 +126,7 @@ pollData$Value[pollData$Series == "RightBlock"] <- NA
 pollData$Value[pollData$Series == "LeftBlock"] <- NA
 pollData$MinValue <- pollData$Value
 pollData$MaxValue <- pollData$Value
-pollData$Series <- revalue(pollData$Series, c("Uncertain"  = "Osäkra",
-																							"RightBlock" = "Alliansen",
-																							"LeftBlock"  = "Rödgröna"))
+pollData$Series <- revalue(pollData$Series, partyNameMap)
 # Define the color scheme for the plot (colors from http://sv.wikipedia.org/wiki/Mall:Partifärg)
 colors <- c("#b70410", "#f9232b", "#79cf49", "#00993c", "#211974",
 						"#5cb7e9", "#0049d8", "#dedd37", "#e2328d", "#cccccc",
@@ -149,9 +159,7 @@ electionData$MinValue <- electionData$Value
 electionData$MaxValue <- electionData$Value
 electionData$Series <- factor(electionData$Series,
 													levels = levels(electionData$Series)[c(6,5,7,3,4,2,1,8,9,10,11,12)])
-electionData$Series <- revalue(electionData$Series, c("Uncertain" = "Osäkra",
-																											"RightBlock" = "Alliansen",
-																											"LeftBlock"  = "Rödgröna"))
+electionData$Series <- revalue(electionData$Series, partyNameMap)
 electionData <- subset(electionData, Index > as.Date("2003-01-01"))
 
 # Actual plot
