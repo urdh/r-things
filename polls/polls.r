@@ -296,10 +296,5 @@ election_data <- subset(election_data, Index > as.Date("2003-01-01"))
 plot <- get_plot(derived_data, poll_data, election_data)
 
 # Outputs
-png("polls.png", width = 1920, height = 1080)
-print(plot)
-dev.off()
-
-pdf("polls.pdf", width = 11.692, height = 8.267)
-print(plot)
-dev.off()
+ggsave("polls.png", plot, width = 25.6, height = 14.4, units = "in", dpi = 75)
+ggsave("polls.pdf", plot, width = 420,  height = 297,  units = "mm")
