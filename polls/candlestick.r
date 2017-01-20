@@ -71,7 +71,7 @@ PARTY <- "S"
 # Helper map for converting columns to party names
 partynames <- c(
   "M"          = "Moderaterna",
-  "FP"         = "Liberalerna",
+  "L"         = "Liberalerna",
   "C"          = "Centerpartiet",
   "KD"         = "Kristdemokraterna",
   "S"          = "Socialdemokraterna",

@@ -73,7 +73,7 @@ stat_rolling_mean_ribbon <-
 
 preprocess <- function(polldata) {
   # Calculate coalition values
-  polldata[["RightBlock"]] <- rowSums(polldata[, c("M", "FP", "C", "KD")])
+  polldata[["RightBlock"]] <- rowSums(polldata[, c("M", "L", "C", "KD")])
   polldata[["LeftBlock"]]  <- rowSums(polldata[, c("S", "V", "MP")])
   # Convert dates to a suitable format
   polldata[["PublDate"]]          <- as.Date(polldata[["PublDate"]])
@@ -195,7 +195,7 @@ get_plot <- function(derived, real, election) {
 # Helper map for converting columns to party names
 partynames <- c(
   "M"          = "Moderaterna",
-  "FP"         = "Liberalerna",
+  "L"         = "Liberalerna",
   "C"          = "Centerpartiet",
   "KD"         = "Kristdemokraterna",
   "S"          = "Socialdemokraterna",
@@ -209,7 +209,7 @@ partynames <- c(
 )
 partyorder <- c(6, 5, 7, 3, 4, 2, 1, 8, 9:12)
 parties <- c(
-  "M", "FP", "C", "KD", "S", "V", "MP", "SD", "FI",
+  "M", "L", "C", "KD", "S", "V", "MP", "SD", "FI",
   "Uncertain", "RightBlock", "LeftBlock"
 )
 
@@ -269,7 +269,7 @@ elections <- data.frame(
   PublDate = c(as.Date("2002-09-15"), as.Date("2006-09-17"),
                as.Date("2010-09-19"), as.Date("2014-09-14")),
   M  = c(15.26, 26.23, 30.06, 23.33),
-  FP = c(13.39, 7.54,  7.06,  5.42 ),
+  L = c(13.39, 7.54,  7.06,  5.42 ),
   C  = c(6.19,  7.88,  6.56,  6.11 ),
   KD = c(9.15,  6.59,  5.60,  4.57 ),
   S  = c(39.85, 34.99, 30.66, 31.01),
