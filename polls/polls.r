@@ -214,8 +214,8 @@ parties <- c(
 )
 
 # Load data
-data_url  <- "https://github.com/MansMeg/SwedishPolls/raw/master/Data/Polls.csv"
-poll_data <- preprocess(repmis::source_data(data_url, sep = ",", header = TRUE))
+devtools::install_github("MansMeg/SwedishPolls", subdir = "RPackage")
+poll_data <- preprocess(SwedishPolls::get_polls())
 
 # Calculate a weighting value based on estimated interviews per day
 poll_durations <-
